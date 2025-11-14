@@ -1,7 +1,7 @@
 version: '3.8'
 
 services:
-  # MariaDB Database
+  # MariaDB Database (Optional - use when DB_TYPE=mariadb)
   mariadb:
     image: mariadb:11.1
     container_name: caraban-mariadb
@@ -21,6 +21,9 @@ services:
       test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
       timeout: 20s
       retries: 10
+    profiles:
+      - mariadb
+      - full
 
   # Backend API
   backend:
@@ -32,13 +35,20 @@ services:
     environment:
       NODE_ENV: ${NODE_ENV:-development}
       PORT: ${BACKEND_PORT:-5000}
-      DB_HOST: mariadb
-      DB_PORT: 3306
+      # Database Type: sqlite (default) or mariadb
+      DB_TYPE: ${DB_TYPE:-sqlite}
+      # SQLite Configuration
+      SQLITE_PATH: ${SQLITE_PATH:-./database.sqlite}
+      # MariaDB Configuration
+      DB_HOST: ${DB_HOST:-mariadb}
+      DB_PORT: ${DB_PORT:-3306}
       DB_NAME: ${DB_NAME:-caraban_erp}
       DB_USER: ${DB_USER:-caraban}
       DB_PASSWORD: ${DB_PASSWORD:-password}
+      # JWT Configuration
       JWT_SECRET: ${JWT_SECRET:-your_jwt_secret_key}
       JWT_EXPIRES_IN: ${JWT_EXPIRES_IN:-7d}
+      # CORS
       CORS_ORIGIN: ${CORS_ORIGIN:-http://localhost:3000}
     ports:
       - "${BACKEND_PORT:-5000}:5000"
@@ -47,11 +57,19 @@ services:
       - /app/node_modules
       - ./backend/uploads:/app/uploads
       - ./backend/logs:/app/logs
+      - sqlite_data:/app/database
+    networks:
+      - caraban-network
+
+  # Backend with MariaDB dependency
+  backend-mariadb:
+    extends: backend
     depends_on:
       mariadb:
         condition: service_healthy
-    networks:
-      - caraban-network
+    profiles:
+      - mariadb
+      - full
 
   # Web Frontend
   web:
@@ -84,9 +102,14 @@ services:
     networks:
       - caraban-network
     command: redis-server --appendonly yes
+    profiles:
+      - redis
+      - full
 
 volumes:
   mariadb_data:
+    driver: local
+  sqlite_data:
     driver: local
   redis_data:
     driver: local

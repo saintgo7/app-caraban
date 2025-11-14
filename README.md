@@ -21,7 +21,8 @@
 - **Express** - 웹 프레임워크
 - **TypeScript** - 타입 안정성
 - **Sequelize** - ORM
-- **MariaDB** - 데이터베이스
+- **SQLite** - 로컬 개발용 데이터베이스
+- **MariaDB** - 프로덕션 데이터베이스 (AWS EC2)
 - **JWT** - 인증
 
 ### 웹 프론트엔드
@@ -100,6 +101,44 @@ app-caraban/
 └── README.md
 ```
 
+## 🗄️ 하이브리드 데이터베이스 시스템
+
+이 프로젝트는 **SQLite**와 **MariaDB**를 환경에 따라 자동으로 선택하는 하이브리드 데이터베이스 시스템을 사용합니다.
+
+### 데이터베이스 선택 기준
+
+| 환경 | 데이터베이스 | 이유 |
+|------|------------|------|
+| **로컬 개발** | SQLite | 빠른 설정, 별도 서버 불필요, 간단한 파일 기반 |
+| **프로덕션/스테이징** | MariaDB | 높은 성능, 동시성 지원, AWS EC2 배포 최적화 |
+
+### 데이터베이스 전환 방법
+
+`.env` 파일의 `DB_TYPE` 변수를 변경하면 됩니다:
+
+**SQLite 사용 (기본값)**
+```bash
+DB_TYPE=sqlite
+SQLITE_PATH=./backend/database.sqlite
+```
+
+**MariaDB 사용**
+```bash
+DB_TYPE=mariadb
+DB_HOST=localhost
+DB_PORT=3306
+DB_NAME=caraban_erp
+DB_USER=caraban
+DB_PASSWORD=your_password
+```
+
+### 장점
+
+✅ **개발 속도**: SQLite로 즉시 개발 시작 (설치 불필요)
+✅ **유연성**: 환경 변수 하나로 DB 전환
+✅ **프로덕션 준비**: MariaDB로 확장 가능
+✅ **동일한 코드**: Sequelize ORM이 모든 차이 처리
+
 ## 🚀 시작하기
 
 ### 필수 요구사항
@@ -107,7 +146,7 @@ app-caraban/
 - **Node.js** >= 18.0.0
 - **pnpm** >= 8.0.0
 - **Docker** & **Docker Compose** (선택사항)
-- **MariaDB** >= 10.6 (Docker를 사용하지 않는 경우)
+- **MariaDB** >= 10.6 (프로덕션 배포 시, SQLite는 자동 포함)
 
 ### 설치
 
@@ -134,13 +173,36 @@ cp .env.example .env
 
 `.env` 파일을 편집하여 데이터베이스 및 기타 설정을 구성합니다.
 
+**중요**: 기본 설정은 SQLite를 사용하므로 별도 데이터베이스 설치 없이 바로 시작할 수 있습니다!
+
 ### 개발 환경 실행
 
-#### 방법 1: Docker Compose 사용 (권장)
+#### 방법 1: SQLite로 빠른 시작 (권장 - 로컬 개발)
 
 ```bash
-# 모든 서비스 시작 (MariaDB, Backend, Web)
-docker-compose up -d
+# SQLite 사용 (기본값, 별도 DB 서버 불필요)
+# .env 파일에서 DB_TYPE=sqlite 확인
+
+# 백엔드 + 웹 시작
+docker-compose up backend web -d
+
+# 또는 로컬에서 직접 실행
+pnpm dev
+```
+
+서비스 접속:
+- 웹 애플리케이션: http://localhost:3000
+- API 서버: http://localhost:5000
+- 데이터베이스: `backend/database.sqlite` 파일
+
+#### 방법 2: MariaDB로 실행 (프로덕션 환경 테스트)
+
+```bash
+# .env 파일 수정
+DB_TYPE=mariadb
+
+# MariaDB 포함 모든 서비스 시작
+docker-compose --profile mariadb up -d
 
 # 로그 확인
 docker-compose logs -f
