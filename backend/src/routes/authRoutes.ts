@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import { body } from 'express-validator';
 import * as authController from '../controllers/authController';
+import * as authRefreshController from '../controllers/authRefreshController';
 import { authenticateToken } from '../middlewares/auth';
 import { validate } from '../middlewares/validation';
 
@@ -53,5 +54,24 @@ router.put(
   ]),
   authController.changePassword
 );
+
+// Refresh token routes
+router.post(
+  '/refresh',
+  validate([body('refreshToken').notEmpty().withMessage('Refresh token is required')]),
+  authRefreshController.refreshAccessToken
+);
+
+router.post(
+  '/logout',
+  validate([body('refreshToken').optional()]),
+  authRefreshController.logout
+);
+
+router.post('/logout-all', authenticateToken, authRefreshController.logoutAll);
+
+router.get('/sessions', authenticateToken, authRefreshController.getActiveSessions);
+
+router.delete('/sessions/:sessionId', authenticateToken, authRefreshController.revokeSession);
 
 export default router;

@@ -1,6 +1,7 @@
-import { Response, NextFunction } from 'express';
+import { Response, NextFunction, Request } from 'express';
 import jwt from 'jsonwebtoken';
-import { User } from '../models';
+import crypto from 'crypto';
+import { User, RefreshToken } from '../models';
 import { AppError } from '../middlewares/errorHandler';
 import { AuthRequest } from '../middlewares/auth';
 
@@ -11,8 +12,30 @@ const generateToken = (userId: string, email: string, role: string): string => {
   }
 
   return jwt.sign({ id: userId, email, role }, secret, {
-    expiresIn: process.env.JWT_EXPIRES_IN || '7d',
+    expiresIn: process.env.JWT_EXPIRES_IN || '15m', // Shorter lived access tokens
   });
+};
+
+const generateRefreshToken = async (
+  userId: string,
+  req: Request
+): Promise<string> => {
+  // Generate secure random token
+  const token = crypto.randomBytes(64).toString('hex');
+
+  // Store refresh token in database
+  const expiresAt = new Date();
+  expiresAt.setDate(expiresAt.getDate() + 30); // 30 days
+
+  await RefreshToken.create({
+    userId,
+    token,
+    expiresAt,
+    ipAddress: req.ip,
+    deviceInfo: req.get('user-agent'),
+  });
+
+  return token;
 };
 
 export const register = async (

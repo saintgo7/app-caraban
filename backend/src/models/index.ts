@@ -7,6 +7,7 @@ import Campsite from './Campsite';
 import Reservation from './Reservation';
 import Review from './Review';
 import Favorite from './Favorite';
+import RefreshToken from './RefreshToken';
 
 // ===== ERP System Associations =====
 Category.hasMany(Product, {
@@ -138,6 +139,17 @@ Favorite.belongsTo(Campsite, {
   as: 'campsite',
 });
 
+// User - RefreshToken
+User.hasMany(RefreshToken, {
+  foreignKey: 'userId',
+  as: 'refreshTokens',
+});
+
+RefreshToken.belongsTo(User, {
+  foreignKey: 'userId',
+  as: 'user',
+});
+
 export {
   // ERP Models
   User,
@@ -150,6 +162,8 @@ export {
   Reservation,
   Review,
   Favorite,
+  // Security Models
+  RefreshToken,
 };
 
 export default {
@@ -162,4 +176,5 @@ export default {
   Reservation,
   Review,
   Favorite,
+  RefreshToken,
 };
