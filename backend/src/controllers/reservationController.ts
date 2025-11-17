@@ -3,6 +3,7 @@ import { Campsite, Reservation, User } from '../models';
 import { AppError } from '../middlewares/errorHandler';
 import { AuthRequest } from '../middlewares/auth';
 import { Op } from 'sequelize';
+import { sendEmail, emailTemplates } from '../services/emailService';
 
 export const createReservation = async (
   req: AuthRequest,
@@ -84,9 +85,28 @@ export const createReservation = async (
       guestCount,
       totalPrice,
       specialRequests,
-      status: 'pending',
+      status: 'confirmed',
       paymentStatus: 'pending',
     });
+
+    // Send confirmation email
+    try {
+      await sendEmail({
+        to: req.user.email,
+        subject: `⛺ ${campsite.name} 예약 확인`,
+        html: emailTemplates.reservationConfirmation({
+          userName: `${req.user.firstName} ${req.user.lastName}`,
+          campsiteName: campsite.name,
+          checkInDate: new Date(checkInDate).toLocaleDateString('ko-KR'),
+          checkOutDate: new Date(checkOutDate).toLocaleDateString('ko-KR'),
+          totalPrice,
+          reservationId: reservation.id,
+        }),
+      });
+    } catch (emailError) {
+      // Log email error but don't fail the reservation
+      console.error('Failed to send confirmation email:', emailError);
+    }
 
     res.status(201).json({
       success: true,

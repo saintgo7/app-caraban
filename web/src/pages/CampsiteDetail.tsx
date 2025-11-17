@@ -5,6 +5,7 @@ import Button from '../components/Button';
 import Badge from '../components/Badge';
 import Modal from '../components/Modal';
 import Input from '../components/Input';
+import KakaoMap from '../components/KakaoMap';
 import {
   campsiteService,
   reservationService,
@@ -260,6 +261,18 @@ const CampsiteDetail: React.FC = () => {
                 <p className="text-lg font-medium">{campsite.checkOutTime}</p>
               </div>
             </div>
+          </Card>
+
+          {/* Location & Map */}
+          <Card>
+            <h2 className="text-xl font-semibold mb-4">위치</h2>
+            <p className="text-gray-700 mb-4">{campsite.address}</p>
+            <KakaoMap
+              latitude={campsite.latitude}
+              longitude={campsite.longitude}
+              markerTitle={campsite.name}
+              height="350px"
+            />
           </Card>
 
           {/* Reviews */}

@@ -5,6 +5,8 @@ import campsiteRoutes from './campsiteRoutes';
 import reservationRoutes from './reservationRoutes';
 import reviewRoutes from './reviewRoutes';
 import favoriteRoutes from './favoriteRoutes';
+import uploadRoutes from './uploadRoutes';
+import paymentRoutes from './paymentRoutes';
 
 const router = Router();
 
@@ -17,6 +19,8 @@ router.use('/campsites', campsiteRoutes);
 router.use('/reservations', reservationRoutes);
 router.use('/reviews', reviewRoutes);
 router.use('/favorites', favoriteRoutes);
+router.use('/upload', uploadRoutes);
+router.use('/payment', paymentRoutes);
 
 // Health check
 router.get('/health', (req, res) => {
