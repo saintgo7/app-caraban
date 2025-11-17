@@ -2,6 +2,7 @@ import { Router } from 'express';
 import { body } from 'express-validator';
 import * as authController from '../controllers/authController';
 import * as authRefreshController from '../controllers/authRefreshController';
+import * as authKakaoController from '../controllers/authKakaoController';
 import { authenticateToken } from '../middlewares/auth';
 import { validate } from '../middlewares/validation';
 
@@ -73,5 +74,19 @@ router.post('/logout-all', authenticateToken, authRefreshController.logoutAll);
 router.get('/sessions', authenticateToken, authRefreshController.getActiveSessions);
 
 router.delete('/sessions/:sessionId', authenticateToken, authRefreshController.revokeSession);
+
+// Kakao OAuth routes
+router.get('/kakao', authKakaoController.getKakaoAuthUrl);
+
+router.get('/kakao/callback', authKakaoController.kakaoCallback);
+
+router.post(
+  '/kakao/link',
+  authenticateToken,
+  validate([body('code').notEmpty().withMessage('Authorization code is required')]),
+  authKakaoController.linkKakao
+);
+
+router.delete('/kakao/unlink', authenticateToken, authKakaoController.unlinkKakao);
 
 export default router;

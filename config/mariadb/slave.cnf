@@ -1,0 +1,45 @@
+# MariaDB Slave (Replica) Configuration
+
+[mysqld]
+# Server ID (must be unique in replication cluster)
+server-id = 2
+
+# Binary logging (for chained replication if needed)
+log-bin = mysql-bin
+binlog_format = ROW
+binlog_do_db = caraban_production
+
+# Relay log
+relay-log = mysql-relay-bin
+relay_log_purge = 1
+relay_log_recovery = 1
+
+# Read only (slave should not accept writes)
+read_only = 1
+
+# Replication
+replicate-do-db = caraban_production
+slave_net_timeout = 60
+sync_relay_log = 1
+
+# InnoDB settings (can be less aggressive than master)
+innodb_flush_log_at_trx_commit = 2
+innodb_buffer_pool_size = 1G
+innodb_log_file_size = 256M
+innodb_log_buffer_size = 8M
+
+# Performance
+max_connections = 500
+thread_cache_size = 50
+table_open_cache = 2000
+query_cache_size = 0
+query_cache_type = 0
+
+# Character set
+character-set-server = utf8mb4
+collation-server = utf8mb4_unicode_ci
+
+# Logging
+slow_query_log = 1
+slow_query_log_file = /var/lib/mysql/slow-query.log
+long_query_time = 2

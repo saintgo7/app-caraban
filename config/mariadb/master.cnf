@@ -1,0 +1,38 @@
+# MariaDB Master Configuration
+
+[mysqld]
+# Server ID (must be unique in replication cluster)
+server-id = 1
+
+# Binary logging
+log-bin = mysql-bin
+binlog_format = ROW
+binlog_do_db = caraban_production
+expire_logs_days = 7
+max_binlog_size = 100M
+
+# Replication
+sync_binlog = 1
+binlog_cache_size = 1M
+
+# InnoDB settings
+innodb_flush_log_at_trx_commit = 1
+innodb_buffer_pool_size = 1G
+innodb_log_file_size = 256M
+innodb_log_buffer_size = 8M
+
+# Performance
+max_connections = 500
+thread_cache_size = 50
+table_open_cache = 2000
+query_cache_size = 0
+query_cache_type = 0
+
+# Character set
+character-set-server = utf8mb4
+collation-server = utf8mb4_unicode_ci
+
+# Logging
+slow_query_log = 1
+slow_query_log_file = /var/lib/mysql/slow-query.log
+long_query_time = 2

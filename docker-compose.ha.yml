@@ -1,0 +1,283 @@
+# High Availability Configuration
+# This docker-compose file provides database replication and load balancing
+# Usage: docker-compose -f docker-compose.ha.yml up -d
+
+version: '3.8'
+
+services:
+  # MariaDB Master Database
+  mariadb-master:
+    image: mariadb:11.1
+    container_name: caraban-mariadb-master
+    restart: always
+    environment:
+      MYSQL_ROOT_PASSWORD: ${DB_ROOT_PASSWORD}
+      MYSQL_DATABASE: ${DB_NAME}
+      MYSQL_USER: ${DB_USER}
+      MYSQL_PASSWORD: ${DB_PASSWORD}
+      MYSQL_REPLICATION_USER: repl_user
+      MYSQL_REPLICATION_PASSWORD: ${DB_REPLICATION_PASSWORD:-replication_password}
+    ports:
+      - "127.0.0.1:3306:3306"
+    volumes:
+      - mariadb_master_data:/var/lib/mysql
+      - ./config/mariadb/master.cnf:/etc/mysql/conf.d/master.cnf:ro
+      - ./backups:/backups
+    networks:
+      - caraban-network
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-p${DB_ROOT_PASSWORD}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    command:
+      - --server-id=1
+      - --log-bin=mysql-bin
+      - --binlog-do-db=${DB_NAME}
+      - --character-set-server=utf8mb4
+      - --collation-server=utf8mb4_unicode_ci
+      - --max_connections=500
+      - --innodb_buffer_pool_size=1G
+
+  # MariaDB Slave Database (Read Replica)
+  mariadb-slave:
+    image: mariadb:11.1
+    container_name: caraban-mariadb-slave
+    restart: always
+    environment:
+      MYSQL_ROOT_PASSWORD: ${DB_ROOT_PASSWORD}
+      MYSQL_REPLICATION_USER: repl_user
+      MYSQL_REPLICATION_PASSWORD: ${DB_REPLICATION_PASSWORD:-replication_password}
+      MYSQL_MASTER_HOST: mariadb-master
+      MYSQL_MASTER_PORT: 3306
+    ports:
+      - "127.0.0.1:3307:3306"
+    volumes:
+      - mariadb_slave_data:/var/lib/mysql
+      - ./config/mariadb/slave.cnf:/etc/mysql/conf.d/slave.cnf:ro
+    networks:
+      - caraban-network
+    depends_on:
+      mariadb-master:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-p${DB_ROOT_PASSWORD}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 40s
+    command:
+      - --server-id=2
+      - --relay-log=mysql-relay-bin
+      - --log-bin=mysql-bin
+      - --binlog-do-db=${DB_NAME}
+      - --read_only=1
+      - --character-set-server=utf8mb4
+      - --collation-server=utf8mb4_unicode_ci
+      - --max_connections=500
+
+  # Redis Master
+  redis-master:
+    image: redis:7-alpine
+    container_name: caraban-redis-master
+    restart: always
+    ports:
+      - "127.0.0.1:6379:6379"
+    volumes:
+      - redis_master_data:/data
+    networks:
+      - caraban-network
+    command: redis-server --appendonly yes --requirepass ${REDIS_PASSWORD}
+    healthcheck:
+      test: ["CMD", "redis-cli", "--raw", "incr", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+
+  # Redis Replica (Read-only)
+  redis-replica:
+    image: redis:7-alpine
+    container_name: caraban-redis-replica
+    restart: always
+    ports:
+      - "127.0.0.1:6380:6379"
+    volumes:
+      - redis_replica_data:/data
+    networks:
+      - caraban-network
+    depends_on:
+      redis-master:
+        condition: service_healthy
+    command: redis-server --appendonly yes --requirepass ${REDIS_PASSWORD} --replicaof redis-master 6379 --masterauth ${REDIS_PASSWORD}
+    healthcheck:
+      test: ["CMD", "redis-cli", "--raw", "incr", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+
+  # Backend API - Instance 1
+  backend-1:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+      target: production
+    container_name: caraban-backend-1
+    restart: always
+    env_file:
+      - .env.production
+    environment:
+      - DB_HOST=mariadb-master
+      - REDIS_HOST=redis-master
+      - INSTANCE_ID=backend-1
+    ports:
+      - "127.0.0.1:5001:5000"
+    volumes:
+      - ./backend/uploads:/app/uploads
+      - ./backend/logs:/app/logs
+    networks:
+      - caraban-network
+    depends_on:
+      mariadb-master:
+        condition: service_healthy
+      redis-master:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "node", "-e", "require('http').get('http://localhost:5000/api/health', (r) => {process.exit(r.statusCode === 200 ? 0 : 1)})"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  # Backend API - Instance 2
+  backend-2:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+      target: production
+    container_name: caraban-backend-2
+    restart: always
+    env_file:
+      - .env.production
+    environment:
+      - DB_HOST=mariadb-master
+      - REDIS_HOST=redis-master
+      - INSTANCE_ID=backend-2
+    ports:
+      - "127.0.0.1:5002:5000"
+    volumes:
+      - ./backend/uploads:/app/uploads
+      - ./backend/logs:/app/logs
+    networks:
+      - caraban-network
+    depends_on:
+      mariadb-master:
+        condition: service_healthy
+      redis-master:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "node", "-e", "require('http').get('http://localhost:5000/api/health', (r) => {process.exit(r.statusCode === 200 ? 0 : 1)})"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  # Backend API - Instance 3
+  backend-3:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+      target: production
+    container_name: caraban-backend-3
+    restart: always
+    env_file:
+      - .env.production
+    environment:
+      - DB_HOST=mariadb-master
+      - REDIS_HOST=redis-master
+      - INSTANCE_ID=backend-3
+    ports:
+      - "127.0.0.1:5003:5000"
+    volumes:
+      - ./backend/uploads:/app/uploads
+      - ./backend/logs:/app/logs
+    networks:
+      - caraban-network
+    depends_on:
+      mariadb-master:
+        condition: service_healthy
+      redis-master:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "node", "-e", "require('http').get('http://localhost:5000/api/health', (r) => {process.exit(r.statusCode === 200 ? 0 : 1)})"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  # Nginx Load Balancer
+  nginx-lb:
+    image: nginx:alpine
+    container_name: caraban-nginx-lb
+    restart: always
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./config/nginx/nginx-lb.conf:/etc/nginx/nginx.conf:ro
+      - ./config/nginx/ssl:/etc/nginx/ssl:ro
+      - ./web/dist:/usr/share/nginx/html:ro
+      - ./nginx/logs:/var/log/nginx
+    networks:
+      - caraban-network
+    depends_on:
+      - backend-1
+      - backend-2
+      - backend-3
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+
+  # Backup Service
+  backup:
+    image: mariadb:11.1
+    container_name: caraban-backup
+    restart: always
+    environment:
+      MYSQL_HOST: mariadb-master
+      MYSQL_USER: ${DB_USER}
+      MYSQL_PASSWORD: ${DB_PASSWORD}
+      MYSQL_DATABASE: ${DB_NAME}
+      BACKUP_DIR: /backups
+    volumes:
+      - ./backups:/backups
+      - ./scripts/backup.sh:/backup.sh:ro
+    networks:
+      - caraban-network
+    depends_on:
+      - mariadb-master
+    entrypoint: /bin/sh
+    command:
+      - -c
+      - |
+        while true; do
+          echo "Running backup at $$(date)"
+          sh /backup.sh
+          sleep 86400  # Run once per day
+        done
+
+volumes:
+  mariadb_master_data:
+    driver: local
+  mariadb_slave_data:
+    driver: local
+  redis_master_data:
+    driver: local
+  redis_replica_data:
+    driver: local
+
+networks:
+  caraban-network:
+    driver: bridge

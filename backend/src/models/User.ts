@@ -13,6 +13,7 @@ interface UserAttributes {
   address?: string;
   isActive: boolean;
   lastLogin?: Date;
+  kakaoId?: string;
   createdAt?: Date;
   updatedAt?: Date;
 }
@@ -30,6 +31,7 @@ class User extends Model<UserAttributes, UserCreationAttributes> implements User
   public address?: string;
   public isActive!: boolean;
   public lastLogin?: Date;
+  public kakaoId?: string;
 
   public readonly createdAt!: Date;
   public readonly updatedAt!: Date;
@@ -94,6 +96,11 @@ User.init(
     lastLogin: {
       type: DataTypes.DATE,
       allowNull: true,
+    },
+    kakaoId: {
+      type: DataTypes.STRING(100),
+      allowNull: true,
+      unique: true,
     },
   },
   {
