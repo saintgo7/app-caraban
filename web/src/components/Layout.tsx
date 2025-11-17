@@ -1,6 +1,6 @@
 import { Outlet, Link, useNavigate } from 'react-router-dom';
 import { useAuthStore } from '../stores/authStore';
-import { LogOut, LayoutDashboard, Package, ShoppingCart, User } from 'lucide-react';
+import { LogOut, LayoutDashboard, Package, ShoppingCart, User, Tent, Calendar, Heart } from 'lucide-react';
 
 const Layout = () => {
   const { user, logout } = useAuthStore();
@@ -19,29 +19,36 @@ const Layout = () => {
           <div className="flex justify-between h-16">
             <div className="flex">
               <div className="flex-shrink-0 flex items-center">
-                <h1 className="text-2xl font-bold text-primary-600">Caraban ERP</h1>
+                <h1 className="text-2xl font-bold text-primary-600">⛺ Caraban 캠핑</h1>
               </div>
               <div className="hidden sm:ml-6 sm:flex sm:space-x-8">
                 <Link
-                  to="/dashboard"
+                  to="/campsites"
                   className="inline-flex items-center px-1 pt-1 text-sm font-medium text-gray-900 hover:text-primary-600"
+                >
+                  <Tent className="w-4 h-4 mr-2" />
+                  캠핑장
+                </Link>
+                <Link
+                  to="/my-reservations"
+                  className="inline-flex items-center px-1 pt-1 text-sm font-medium text-gray-900 hover:text-primary-600"
+                >
+                  <Calendar className="w-4 h-4 mr-2" />
+                  내 예약
+                </Link>
+                <Link
+                  to="/favorites"
+                  className="inline-flex items-center px-1 pt-1 text-sm font-medium text-gray-900 hover:text-primary-600"
+                >
+                  <Heart className="w-4 h-4 mr-2" />
+                  즐겨찾기
+                </Link>
+                <Link
+                  to="/dashboard"
+                  className="inline-flex items-center px-1 pt-1 text-sm font-medium text-gray-500 hover:text-primary-600"
                 >
                   <LayoutDashboard className="w-4 h-4 mr-2" />
                   Dashboard
-                </Link>
-                <Link
-                  to="/products"
-                  className="inline-flex items-center px-1 pt-1 text-sm font-medium text-gray-900 hover:text-primary-600"
-                >
-                  <Package className="w-4 h-4 mr-2" />
-                  Products
-                </Link>
-                <Link
-                  to="/orders"
-                  className="inline-flex items-center px-1 pt-1 text-sm font-medium text-gray-900 hover:text-primary-600"
-                >
-                  <ShoppingCart className="w-4 h-4 mr-2" />
-                  Orders
                 </Link>
               </div>
             </div>

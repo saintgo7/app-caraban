@@ -7,6 +7,10 @@ import Dashboard from './pages/Dashboard';
 import Products from './pages/Products';
 import Orders from './pages/Orders';
 import Profile from './pages/Profile';
+import Campsites from './pages/Campsites';
+import CampsiteDetail from './pages/CampsiteDetail';
+import MyReservations from './pages/MyReservations';
+import Favorites from './pages/Favorites';
 
 function App() {
   const { isAuthenticated } = useAuthStore();
@@ -33,9 +37,25 @@ function App() {
           path="/profile"
           element={isAuthenticated ? <Profile /> : <Navigate to="/login" />}
         />
+        <Route
+          path="/campsites"
+          element={isAuthenticated ? <Campsites /> : <Navigate to="/login" />}
+        />
+        <Route
+          path="/campsites/:id"
+          element={isAuthenticated ? <CampsiteDetail /> : <Navigate to="/login" />}
+        />
+        <Route
+          path="/my-reservations"
+          element={isAuthenticated ? <MyReservations /> : <Navigate to="/login" />}
+        />
+        <Route
+          path="/favorites"
+          element={isAuthenticated ? <Favorites /> : <Navigate to="/login" />}
+        />
       </Route>
 
-      <Route path="/" element={<Navigate to="/dashboard" />} />
+      <Route path="/" element={<Navigate to="/campsites" />} />
     </Routes>
   );
 }
