@@ -102,6 +102,139 @@ cd /var/www/caraban/current
 - `MYSQL_DATABASE`: 데이터베이스 이름 (기본값: caraban_production)
 - `BACKUP_DIR`: 백업 저장 디렉토리 (기본값: /backups)
 
+### 4. `deploy-to-cdn.sh` - CDN 배포 (Bash)
+
+정적 자산을 S3에 업로드하고 CloudFront 캐시를 무효화하는 Bash 스크립트입니다.
+
+**실행 방법:**
+```bash
+./scripts/deploy-to-cdn.sh \
+  --bucket caraban-production-static-assets \
+  --distribution-id E1234567890ABC
+
+# Dry-run으로 미리보기
+./scripts/deploy-to-cdn.sh \
+  --bucket caraban-production-static-assets \
+  --distribution-id E1234567890ABC \
+  --dry-run
+```
+
+**수행 작업:**
+- ✅ 파일별 MIME 타입 자동 감지
+- ✅ 파일 타입별 최적화된 캐시 헤더 설정
+  - HTML: `max-age=0` (항상 최신)
+  - 정적 자산 (해시): `max-age=31536000, immutable` (1년)
+  - 이미지: `max-age=2592000` (30일)
+  - 폰트: `max-age=31536000, immutable` (1년)
+- ✅ S3 업로드
+- ✅ CloudFront 캐시 무효화
+
+**요구사항:**
+- AWS CLI 설치 및 구성
+- `web/dist` 디렉토리 빌드 완료
+
+### 5. `cdn-deploy.js` - CDN 배포 (Node.js)
+
+Node.js로 작성된 CDN 배포 스크립트로 CI/CD 파이프라인에 적합합니다.
+
+**설치:**
+```bash
+cd scripts
+npm install
+```
+
+**의존성:**
+- `@aws-sdk/client-s3` - S3 작업
+- `@aws-sdk/client-cloudfront` - CloudFront 작업
+- `mime-types` - MIME 타입 감지
+
+**실행 방법:**
+```bash
+export S3_BUCKET=caraban-production-static-assets
+export CLOUDFRONT_DISTRIBUTION=E1234567890ABC
+export AWS_REGION=ap-northeast-2
+
+# 기본 배포
+node scripts/cdn-deploy.js
+
+# 무효화 완료까지 대기
+node scripts/cdn-deploy.js --wait
+
+# 상세 출력
+node scripts/cdn-deploy.js --verbose
+
+# Dry-run
+node scripts/cdn-deploy.js --dry-run
+```
+
+**환경 변수:**
+- `S3_BUCKET`: S3 버킷 이름 (필수)
+- `CLOUDFRONT_DISTRIBUTION`: CloudFront 배포 ID (필수)
+- `AWS_REGION`: AWS 리전 (기본값: ap-northeast-2)
+- `SOURCE_DIR`: 소스 디렉토리 (기본값: web/dist)
+- `AWS_ACCESS_KEY_ID`: AWS 액세스 키
+- `AWS_SECRET_ACCESS_KEY`: AWS 시크릿 키
+
+### 6. `invalidate-cdn-cache.sh` - CDN 캐시 무효화
+
+CloudFront 캐시를 선택적으로 무효화하는 유틸리티 스크립트입니다.
+
+**실행 방법:**
+```bash
+# 전체 무효화
+./scripts/invalidate-cdn-cache.sh -d E1234567890ABC --all
+
+# 특정 경로 무효화
+./scripts/invalidate-cdn-cache.sh \
+  -d E1234567890ABC \
+  -p "/index.html,/static/css/*,/static/js/*"
+
+# 이미지만 무효화
+./scripts/invalidate-cdn-cache.sh -d E1234567890ABC --images
+
+# 정적 자산만 무효화
+./scripts/invalidate-cdn-cache.sh -d E1234567890ABC --static
+
+# 완료까지 대기
+./scripts/invalidate-cdn-cache.sh -d E1234567890ABC --all --wait
+```
+
+**옵션:**
+- `-d, --distribution-id`: CloudFront 배포 ID (필수)
+- `-p, --paths`: 무효화할 경로 (쉼표로 구분)
+- `--all`: 모든 경로 무효화 (`/*`)
+- `--images`: 이미지만 무효화 (`/images/*`)
+- `--static`: 정적 자산만 무효화 (`/static/*`)
+- `-w, --wait`: 무효화 완료까지 대기
+- `-h, --help`: 도움말 표시
+
+**참고:**
+- 첫 1,000건의 무효화는 무료
+- 와일드카드 경로(`/*`)도 1건으로 계산
+- 버전이 있는 파일명 사용 시 무효화 불필요 (권장)
+
+### 7. `setup-replication.sh` - DB 복제 설정
+
+MariaDB Master-Slave 복제를 자동으로 설정하는 스크립트입니다.
+
+**실행 방법:**
+```bash
+# HA 스택 시작 후
+docker-compose -f docker-compose.ha.yml up -d
+
+# 복제 설정
+./scripts/setup-replication.sh
+```
+
+**수행 작업:**
+- ✅ Master에 복제 사용자 생성
+- ✅ Master의 binary log 위치 확인
+- ✅ Slave 설정
+- ✅ 복제 시작 및 상태 확인
+
+**요구사항:**
+- `docker-compose.ha.yml`로 HA 스택이 실행 중이어야 함
+
 ## 🛠️ 서버 헬퍼 스크립트
 
 `setup-server.sh` 실행 후 서버 홈 디렉토리에 자동 생성되는 편의 스크립트입니다.

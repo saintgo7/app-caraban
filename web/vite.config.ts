@@ -10,6 +10,10 @@ export default defineConfig({
       '@': path.resolve(__dirname, './src'),
     },
   },
+  esbuild: {
+    // Drop console and debugger in production
+    drop: process.env.NODE_ENV === 'production' ? ['console', 'debugger'] : [],
+  },
   build: {
     // Output directory
     outDir: 'dist',
@@ -17,14 +21,10 @@ export default defineConfig({
     assetsDir: 'static',
     // Generate source maps for production debugging
     sourcemap: process.env.NODE_ENV !== 'production',
-    // Minify options
-    minify: 'terser',
-    terserOptions: {
-      compress: {
-        drop_console: process.env.NODE_ENV === 'production',
-        drop_debugger: process.env.NODE_ENV === 'production',
-      },
-    },
+    // Minify with esbuild (faster than terser, included in Vite)
+    minify: 'esbuild',
+    // Target modern browsers
+    target: 'es2015',
     // Rollup options
     rollupOptions: {
       output: {

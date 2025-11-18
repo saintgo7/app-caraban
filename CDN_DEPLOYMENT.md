@@ -347,6 +347,11 @@ cd ..
 ### Using Node.js Script
 
 ```bash
+# First time: Install dependencies
+cd scripts
+npm install
+cd ..
+
 # Set environment variables
 export S3_BUCKET=caraban-production-static-assets
 export CLOUDFRONT_DISTRIBUTION=E1234567890ABC
@@ -363,6 +368,11 @@ node scripts/cdn-deploy.js --verbose
 
 # Dry run
 node scripts/cdn-deploy.js --dry-run
+```
+
+**Note:** The Node.js script requires AWS SDK packages. Install them once with:
+```bash
+cd scripts && npm install
 ```
 
 ## Cache Invalidation
@@ -415,11 +425,12 @@ node scripts/cdn-deploy.js --dry-run
 
 ```bash
 # Frontend build already includes:
-# - Terser minification (JS)
+# - esbuild minification (JS) - faster than Terser
 # - CSS minification
 # - Image optimization
 # - Tree shaking
 # - Code splitting
+# - Drop console.log in production
 
 # Additional optimizations:
 cd web
