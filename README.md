@@ -305,6 +305,33 @@ export DEPLOY_HOST=your-domain.com
 ./scripts/deploy-aws.sh production
 ```
 
+### CloudFront CDN 배포
+
+전역 콘텐츠 전송 네트워크(CDN)를 통한 정적 자산 최적화 배포: [CDN_DEPLOYMENT.md](./CDN_DEPLOYMENT.md)
+
+```bash
+# 1. CloudFormation으로 CDN 인프라 생성
+aws cloudformation create-stack \
+  --stack-name caraban-cdn-production \
+  --template-body file://infrastructure/cloudformation-cdn.yaml \
+  --parameters ParameterKey=ProjectName,ParameterValue=caraban
+
+# 2. 프론트엔드 빌드
+cd web && npm run build && cd ..
+
+# 3. S3 + CloudFront 배포
+./scripts/deploy-to-cdn.sh \
+  --bucket caraban-production-static-assets \
+  --distribution-id E1234567890ABC
+```
+
+**CDN 이점:**
+- ⚡ 60-90% 빠른 로드 시간 (전 세계 225+ 엣지 로케이션)
+- 💰 낮은 비용 (S3 + CloudFront < EC2 정적 서빙)
+- 🔒 AWS WAF 보안 + DDoS 방어
+- 🚀 HTTP/2 & HTTP/3 지원
+- 📊 세밀한 캐시 제어 (HTML: 0초 / 정적 자산: 1년 / 이미지: 30일)
+
 ### CI/CD (GitHub Actions)
 
 자동 배포 파이프라인이 구성되어 있습니다:
@@ -319,6 +346,8 @@ PR 생성 → 테스트만 실행
 - `DOCKER_USERNAME`, `DOCKER_PASSWORD`
 - `PRODUCTION_HOST`, `PRODUCTION_USER`, `PRODUCTION_SSH_KEY`
 - `STAGING_HOST`, `STAGING_USER`, `STAGING_SSH_KEY`
+- `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY` (CDN 배포용)
+- `S3_BUCKET_NAME`, `CLOUDFRONT_DISTRIBUTION_ID` (CDN 배포용)
 
 ## 📚 API 문서
 

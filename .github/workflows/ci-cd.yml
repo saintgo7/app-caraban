@@ -99,6 +99,62 @@ jobs:
         env:
           VITE_API_URL: https://api.caraban.com
 
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@v3
+        with:
+          name: frontend-build
+          path: web/dist
+          retention-days: 1
+
+  # Deploy to CDN (only on main - production)
+  deploy-cdn:
+    name: Deploy to CloudFront CDN
+    runs-on: ubuntu-latest
+    needs: frontend-test
+    if: github.ref == 'refs/heads/main'
+    environment:
+      name: production
+      url: https://cdn.caraban.com
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Download build artifacts
+        uses: actions/download-artifact@v3
+        with:
+          name: frontend-build
+          path: web/dist
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ap-northeast-2
+
+      - name: Deploy to S3
+        run: |
+          # Deploy assets to S3 with appropriate cache headers
+          chmod +x scripts/deploy-to-cdn.sh
+          ./scripts/deploy-to-cdn.sh \
+            --bucket ${{ secrets.S3_BUCKET_NAME }} \
+            --distribution-id ${{ secrets.CLOUDFRONT_DISTRIBUTION_ID }}
+
+      - name: Verify deployment
+        run: |
+          echo "✅ CDN deployment successful"
+          echo "S3 Bucket: s3://${{ secrets.S3_BUCKET_NAME }}"
+          echo "CloudFront Distribution: ${{ secrets.CLOUDFRONT_DISTRIBUTION_ID }}"
+
+          # Get CloudFront domain
+          CF_DOMAIN=$(aws cloudfront get-distribution \
+            --id ${{ secrets.CLOUDFRONT_DISTRIBUTION_ID }} \
+            --query 'Distribution.DomainName' \
+            --output text)
+
+          echo "CDN URL: https://${CF_DOMAIN}"
+
   # Build and Push Docker Images (only on main/develop)
   docker-build:
     name: Build Docker Images

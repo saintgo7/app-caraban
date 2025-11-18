@@ -1,0 +1,29 @@
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Sid": "AllowCloudFrontOAI",
+      "Effect": "Allow",
+      "Principal": {
+        "AWS": "arn:aws:iam::cloudfront:user/CloudFront Origin Access Identity ${OAI_ID}"
+      },
+      "Action": "s3:GetObject",
+      "Resource": "arn:aws:s3:::${S3_BUCKET_NAME}/*"
+    },
+    {
+      "Sid": "AllowSSLRequestsOnly",
+      "Effect": "Deny",
+      "Principal": "*",
+      "Action": "s3:*",
+      "Resource": [
+        "arn:aws:s3:::${S3_BUCKET_NAME}",
+        "arn:aws:s3:::${S3_BUCKET_NAME}/*"
+      ],
+      "Condition": {
+        "Bool": {
+          "aws:SecureTransport": "false"
+        }
+      }
+    }
+  ]
+}

@@ -1,0 +1,397 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: 'Caraban Camping Platform - CloudFront CDN with S3 Static Assets'
+
+Parameters:
+  ProjectName:
+    Type: String
+    Default: caraban
+    Description: Project name for resource naming
+
+  Environment:
+    Type: String
+    Default: production
+    AllowedValues:
+      - development
+      - staging
+      - production
+    Description: Environment name
+
+  DomainName:
+    Type: String
+    Description: Custom domain name for CloudFront distribution (e.g., cdn.caraban.com)
+    Default: ''
+
+  ACMCertificateArn:
+    Type: String
+    Description: ACM Certificate ARN for SSL/TLS (must be in us-east-1)
+    Default: ''
+
+  ApiDomainName:
+    Type: String
+    Description: API backend domain name
+    Default: api.caraban.com
+
+  EnableWAF:
+    Type: String
+    Default: 'true'
+    AllowedValues:
+      - 'true'
+      - 'false'
+    Description: Enable AWS WAF for CloudFront
+
+Conditions:
+  HasCustomDomain: !Not [!Equals [!Ref DomainName, '']]
+  HasACMCertificate: !Not [!Equals [!Ref ACMCertificateArn, '']]
+  EnableWAFCondition: !Equals [!Ref EnableWAF, 'true']
+
+Resources:
+  # S3 Bucket for Static Assets
+  StaticAssetsBucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: !Sub '${ProjectName}-${Environment}-static-assets'
+      BucketEncryption:
+        ServerSideEncryptionConfiguration:
+          - ServerSideEncryptionByDefault:
+              SSEAlgorithm: AES256
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
+      VersioningConfiguration:
+        Status: Enabled
+      LifecycleConfiguration:
+        Rules:
+          - Id: DeleteOldVersions
+            Status: Enabled
+            NoncurrentVersionExpirationInDays: 30
+          - Id: TransitionToIA
+            Status: Enabled
+            Transitions:
+              - TransitionInDays: 90
+                StorageClass: STANDARD_IA
+      CorsConfiguration:
+        CorsRules:
+          - AllowedHeaders:
+              - '*'
+            AllowedMethods:
+              - GET
+              - HEAD
+            AllowedOrigins:
+              - '*'
+            MaxAge: 3600
+      Tags:
+        - Key: Project
+          Value: !Ref ProjectName
+        - Key: Environment
+          Value: !Ref Environment
+
+  # S3 Bucket for CloudFront Logs
+  LoggingBucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: !Sub '${ProjectName}-${Environment}-cdn-logs'
+      BucketEncryption:
+        ServerSideEncryptionConfiguration:
+          - ServerSideEncryptionByDefault:
+              SSEAlgorithm: AES256
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
+      LifecycleConfiguration:
+        Rules:
+          - Id: DeleteOldLogs
+            Status: Enabled
+            ExpirationInDays: 90
+          - Id: TransitionToGlacier
+            Status: Enabled
+            Transitions:
+              - TransitionInDays: 30
+                StorageClass: GLACIER
+      OwnershipControls:
+        Rules:
+          - ObjectOwnership: BucketOwnerPreferred
+      Tags:
+        - Key: Project
+          Value: !Ref ProjectName
+        - Key: Environment
+          Value: !Ref Environment
+
+  # CloudFront Origin Access Identity
+  CloudFrontOAI:
+    Type: AWS::CloudFront::CloudFrontOriginAccessIdentity
+    Properties:
+      CloudFrontOriginAccessIdentityConfig:
+        Comment: !Sub 'OAI for ${ProjectName}-${Environment}'
+
+  # S3 Bucket Policy - Allow CloudFront OAI
+  StaticAssetsBucketPolicy:
+    Type: AWS::S3::BucketPolicy
+    Properties:
+      Bucket: !Ref StaticAssetsBucket
+      PolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Sid: AllowCloudFrontOAI
+            Effect: Allow
+            Principal:
+              CanonicalUser: !GetAtt CloudFrontOAI.S3CanonicalUserId
+            Action: 's3:GetObject'
+            Resource: !Sub '${StaticAssetsBucket.Arn}/*'
+          - Sid: AllowSSLRequestsOnly
+            Effect: Deny
+            Principal: '*'
+            Action: 's3:*'
+            Resource:
+              - !GetAtt StaticAssetsBucket.Arn
+              - !Sub '${StaticAssetsBucket.Arn}/*'
+            Condition:
+              Bool:
+                'aws:SecureTransport': false
+
+  # WAF Web ACL (Optional)
+  WAFWebACL:
+    Type: AWS::WAFv2::WebACL
+    Condition: EnableWAFCondition
+    Properties:
+      Name: !Sub '${ProjectName}-${Environment}-cdn-waf'
+      Scope: CLOUDFRONT
+      DefaultAction:
+        Allow: {}
+      Description: WAF rules for CloudFront distribution
+      Rules:
+        - Name: RateLimitRule
+          Priority: 1
+          Statement:
+            RateBasedStatement:
+              Limit: 2000
+              AggregateKeyType: IP
+          Action:
+            Block: {}
+          VisibilityConfig:
+            SampledRequestsEnabled: true
+            CloudWatchMetricsEnabled: true
+            MetricName: RateLimitRule
+        - Name: AWSManagedRulesCommonRuleSet
+          Priority: 2
+          OverrideAction:
+            None: {}
+          Statement:
+            ManagedRuleGroupStatement:
+              VendorName: AWS
+              Name: AWSManagedRulesCommonRuleSet
+          VisibilityConfig:
+            SampledRequestsEnabled: true
+            CloudWatchMetricsEnabled: true
+            MetricName: AWSManagedRulesCommonRuleSet
+        - Name: AWSManagedRulesKnownBadInputsRuleSet
+          Priority: 3
+          OverrideAction:
+            None: {}
+          Statement:
+            ManagedRuleGroupStatement:
+              VendorName: AWS
+              Name: AWSManagedRulesKnownBadInputsRuleSet
+          VisibilityConfig:
+            SampledRequestsEnabled: true
+            CloudWatchMetricsEnabled: true
+            MetricName: AWSManagedRulesKnownBadInputsRuleSet
+      VisibilityConfig:
+        SampledRequestsEnabled: true
+        CloudWatchMetricsEnabled: true
+        MetricName: !Sub '${ProjectName}-${Environment}-waf'
+      Tags:
+        - Key: Project
+          Value: !Ref ProjectName
+        - Key: Environment
+          Value: !Ref Environment
+
+  # CloudFront Distribution
+  CloudFrontDistribution:
+    Type: AWS::CloudFront::Distribution
+    Properties:
+      DistributionConfig:
+        Enabled: true
+        Comment: !Sub '${ProjectName}-${Environment} CDN Distribution'
+        HttpVersion: http2and3
+        IPV6Enabled: true
+        PriceClass: PriceClass_200
+        DefaultRootObject: index.html
+        Aliases: !If
+          - HasCustomDomain
+          - [!Ref DomainName]
+          - !Ref AWS::NoValue
+        Origins:
+          # S3 Origin for Static Assets
+          - Id: S3-StaticAssets
+            DomainName: !GetAtt StaticAssetsBucket.RegionalDomainName
+            S3OriginConfig:
+              OriginAccessIdentity: !Sub 'origin-access-identity/cloudfront/${CloudFrontOAI}'
+            OriginShield:
+              Enabled: true
+              OriginShieldRegion: !Ref AWS::Region
+            ConnectionAttempts: 3
+            ConnectionTimeout: 10
+          # Custom Origin for API
+          - Id: Custom-API
+            DomainName: !Ref ApiDomainName
+            CustomOriginConfig:
+              HTTPPort: 80
+              HTTPSPort: 443
+              OriginProtocolPolicy: https-only
+              OriginSSLProtocols:
+                - TLSv1.2
+              OriginReadTimeout: 30
+              OriginKeepaliveTimeout: 5
+            ConnectionAttempts: 3
+            ConnectionTimeout: 10
+        DefaultCacheBehavior:
+          TargetOriginId: S3-StaticAssets
+          ViewerProtocolPolicy: redirect-to-https
+          AllowedMethods:
+            - GET
+            - HEAD
+          CachedMethods:
+            - GET
+            - HEAD
+          Compress: true
+          CachePolicyId: 658327ea-f89d-4fab-a63d-7e88639e58f6  # Managed-CachingOptimized
+          OriginRequestPolicyId: 88a5eaf4-2fd4-4709-b370-b4c650ea3fcf  # Managed-CORS-S3Origin
+          ResponseHeadersPolicyId: 5cc3b908-e619-4b99-88e5-2cf7f45965bd  # Managed-SecurityHeadersPolicy
+        CacheBehaviors:
+          # API Cache Behavior - No Caching
+          - PathPattern: '/api/*'
+            TargetOriginId: Custom-API
+            ViewerProtocolPolicy: https-only
+            AllowedMethods:
+              - GET
+              - HEAD
+              - OPTIONS
+              - PUT
+              - POST
+              - PATCH
+              - DELETE
+            CachedMethods:
+              - GET
+              - HEAD
+            Compress: true
+            CachePolicyId: 4135ea2d-6df8-44a3-9df3-4b5a84be39ad  # Managed-CachingDisabled
+            OriginRequestPolicyId: 216adef6-5c7f-47e4-b989-5492eafa07d3  # Managed-AllViewerExceptHostHeader
+          # Static Assets - Long Cache
+          - PathPattern: '/static/*'
+            TargetOriginId: S3-StaticAssets
+            ViewerProtocolPolicy: redirect-to-https
+            AllowedMethods:
+              - GET
+              - HEAD
+            Compress: true
+            CachePolicyId: 658327ea-f89d-4fab-a63d-7e88639e58f6
+            OriginRequestPolicyId: 88a5eaf4-2fd4-4709-b370-b4c650ea3fcf
+          # Images - Medium Cache
+          - PathPattern: '/images/*'
+            TargetOriginId: S3-StaticAssets
+            ViewerProtocolPolicy: redirect-to-https
+            AllowedMethods:
+              - GET
+              - HEAD
+            Compress: true
+            CachePolicyId: 658327ea-f89d-4fab-a63d-7e88639e58f6
+            OriginRequestPolicyId: 88a5eaf4-2fd4-4709-b370-b4c650ea3fcf
+        CustomErrorResponses:
+          - ErrorCode: 403
+            ResponseCode: 200
+            ResponsePagePath: /index.html
+            ErrorCachingMinTTL: 300
+          - ErrorCode: 404
+            ResponseCode: 200
+            ResponsePagePath: /index.html
+            ErrorCachingMinTTL: 300
+        ViewerCertificate: !If
+          - HasACMCertificate
+          - AcmCertificateArn: !Ref ACMCertificateArn
+            SslSupportMethod: sni-only
+            MinimumProtocolVersion: TLSv1.2_2021
+          - CloudFrontDefaultCertificate: true
+        WebACLId: !If
+          - EnableWAFCondition
+          - !GetAtt WAFWebACL.Arn
+          - !Ref AWS::NoValue
+        Logging:
+          Bucket: !GetAtt LoggingBucket.DomainName
+          Prefix: cloudfront/
+          IncludeCookies: false
+      Tags:
+        - Key: Project
+          Value: !Ref ProjectName
+        - Key: Environment
+          Value: !Ref Environment
+
+  # CloudWatch Alarms
+  HighErrorRateAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmName: !Sub '${ProjectName}-${Environment}-cdn-high-error-rate'
+      AlarmDescription: Alert when CDN error rate exceeds threshold
+      MetricName: 4xxErrorRate
+      Namespace: AWS/CloudFront
+      Statistic: Average
+      Period: 300
+      EvaluationPeriods: 2
+      Threshold: 5
+      ComparisonOperator: GreaterThanThreshold
+      Dimensions:
+        - Name: DistributionId
+          Value: !Ref CloudFrontDistribution
+      TreatMissingData: notBreaching
+
+  HighOriginLatencyAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmName: !Sub '${ProjectName}-${Environment}-cdn-high-origin-latency'
+      AlarmDescription: Alert when origin latency exceeds threshold
+      MetricName: OriginLatency
+      Namespace: AWS/CloudFront
+      Statistic: Average
+      Period: 300
+      EvaluationPeriods: 2
+      Threshold: 1000
+      ComparisonOperator: GreaterThanThreshold
+      Dimensions:
+        - Name: DistributionId
+          Value: !Ref CloudFrontDistribution
+      TreatMissingData: notBreaching
+
+Outputs:
+  DistributionId:
+    Description: CloudFront Distribution ID
+    Value: !Ref CloudFrontDistribution
+    Export:
+      Name: !Sub '${ProjectName}-${Environment}-cdn-id'
+
+  DistributionDomainName:
+    Description: CloudFront Distribution Domain Name
+    Value: !GetAtt CloudFrontDistribution.DomainName
+    Export:
+      Name: !Sub '${ProjectName}-${Environment}-cdn-domain'
+
+  StaticAssetsBucketName:
+    Description: S3 Bucket for Static Assets
+    Value: !Ref StaticAssetsBucket
+    Export:
+      Name: !Sub '${ProjectName}-${Environment}-static-bucket'
+
+  CloudFrontOAIId:
+    Description: CloudFront Origin Access Identity ID
+    Value: !Ref CloudFrontOAI
+    Export:
+      Name: !Sub '${ProjectName}-${Environment}-oai-id'
+
+  WAFWebACLArn:
+    Condition: EnableWAFCondition
+    Description: WAF Web ACL ARN
+    Value: !GetAtt WAFWebACL.Arn
+    Export:
+      Name: !Sub '${ProjectName}-${Environment}-waf-arn'
