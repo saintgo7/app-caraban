@@ -7,6 +7,8 @@ import reviewRoutes from './reviewRoutes';
 import favoriteRoutes from './favoriteRoutes';
 import uploadRoutes from './uploadRoutes';
 import paymentRoutes from './paymentRoutes';
+import inquiryRoutes from './inquiryRoutes';
+import wishlistRoutes from './wishlistRoutes';
 
 const router = Router();
 
@@ -21,6 +23,10 @@ router.use('/reviews', reviewRoutes);
 router.use('/favorites', favoriteRoutes);
 router.use('/upload', uploadRoutes);
 router.use('/payment', paymentRoutes);
+
+// User interaction routes
+router.use('/inquiries', inquiryRoutes);
+router.use('/wishlist', wishlistRoutes);
 
 // Health check
 router.get('/health', (req, res) => {
