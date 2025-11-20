@@ -1,8 +1,8 @@
-import { Response, NextFunction } from 'express';
+import { Request, Response, NextFunction } from 'express';
 import { Reservation } from '../models';
 import { AppError } from '../middlewares/errorHandler';
 import { AuthRequest } from '../middlewares/auth';
-import { verifyPayment, cancelPayment } from '../services/paymentService';
+import { verifyPayment } from '../services/paymentService';
 
 export const completePayment = async (
   req: AuthRequest,
@@ -14,7 +14,7 @@ export const completePayment = async (
       throw new AppError('인증이 필요합니다', 401);
     }
 
-    const { reservationId, impUid, merchantUid } = req.body;
+    const { reservationId, impUid } = req.body;
 
     // Find reservation
     const reservation = await Reservation.findByPk(reservationId);
@@ -62,7 +62,7 @@ export const refundPayment = async (
       throw new AppError('인증이 필요합니다', 401);
     }
 
-    const { reservationId, reason } = req.body;
+    const { reservationId } = req.body;
 
     // Find reservation
     const reservation = await Reservation.findByPk(reservationId);
@@ -132,7 +132,7 @@ export const paymentWebhook = async (
   next: NextFunction
 ) => {
   try {
-    const { imp_uid, merchant_uid, status } = req.body;
+    const { imp_uid, status } = req.body;
 
     logger.info(`Payment webhook received: ${imp_uid}, ${status}`);
 

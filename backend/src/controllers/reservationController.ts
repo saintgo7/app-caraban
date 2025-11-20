@@ -90,19 +90,23 @@ export const createReservation = async (
     });
 
     // Send confirmation email
+    // Send confirmation email
     try {
-      await sendEmail({
-        to: req.user.email,
-        subject: `⛺ ${campsite.name} 예약 확인`,
-        html: emailTemplates.reservationConfirmation({
-          userName: `${req.user.firstName} ${req.user.lastName}`,
-          campsiteName: campsite.name,
-          checkInDate: new Date(checkInDate).toLocaleDateString('ko-KR'),
-          checkOutDate: new Date(checkOutDate).toLocaleDateString('ko-KR'),
-          totalPrice,
-          reservationId: reservation.id,
-        }),
-      });
+      const user = await User.findByPk(req.user.id);
+      if (user) {
+        await sendEmail({
+          to: req.user.email,
+          subject: `⛺ ${campsite.name} 예약 확인`,
+          html: emailTemplates.reservationConfirmation({
+            userName: `${user.firstName} ${user.lastName}`,
+            campsiteName: campsite.name,
+            checkInDate: new Date(checkInDate).toLocaleDateString('ko-KR'),
+            checkOutDate: new Date(checkOutDate).toLocaleDateString('ko-KR'),
+            totalPrice,
+            reservationId: reservation.id,
+          }),
+        });
+      }
     } catch (emailError) {
       // Log email error but don't fail the reservation
       console.error('Failed to send confirmation email:', emailError);

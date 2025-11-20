@@ -71,7 +71,7 @@ export const refreshAccessToken = async (
       throw new AppError('Refresh token expired or revoked', 401);
     }
 
-    const user = storedToken.user as any;
+    const user = (storedToken as any).user;
 
     // Generate new access token
     const accessToken = generateAccessToken(user.id, user.email, user.role);
@@ -84,13 +84,14 @@ export const refreshAccessToken = async (
       // Generate new refresh token
       const newRefreshToken = await generateRefreshToken(user.id, req);
 
-      return res.json({
+      res.json({
         success: true,
         data: {
           accessToken,
           refreshToken: newRefreshToken,
         },
       });
+      return;
     }
 
     res.json({

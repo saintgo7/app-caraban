@@ -1,7 +1,7 @@
 import { Request, Response } from 'express';
 import Wishlist from '../models/Wishlist';
 import Campsite from '../models/Campsite';
-import User from '../models/User';
+
 
 /**
  * Add campsite to wishlist

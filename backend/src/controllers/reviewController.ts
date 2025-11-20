@@ -2,7 +2,7 @@ import { Response, NextFunction } from 'express';
 import { Review, Campsite, User, Reservation } from '../models';
 import { AppError } from '../middlewares/errorHandler';
 import { AuthRequest } from '../middlewares/auth';
-import sequelize from '../config/database';
+
 
 export const createReview = async (
   req: AuthRequest,
@@ -51,7 +51,7 @@ export const createReview = async (
       rating,
       title,
       content,
-      images: images ? JSON.stringify(images) : undefined,
+      images,
     });
 
     // Update campsite rating and review count
@@ -283,7 +283,7 @@ export const deleteReview = async (
         });
       } else {
         await campsite.update({
-          rating: null,
+          rating: 0,
           reviewCount: 0,
         });
       }
@@ -357,7 +357,7 @@ export const getReviewStats = async (
     });
 
     if (reviews.length === 0) {
-      return res.json({
+      res.json({
         success: true,
         data: {
           totalReviews: 0,
@@ -371,6 +371,7 @@ export const getReviewStats = async (
           },
         },
       });
+      return;
     }
 
     const totalRating = reviews.reduce((sum, r) => sum + r.rating, 0);

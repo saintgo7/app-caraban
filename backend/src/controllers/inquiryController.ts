@@ -3,6 +3,7 @@ import Inquiry from '../models/Inquiry';
 import User from '../models/User';
 import Campsite from '../models/Campsite';
 import { Op } from 'sequelize';
+import sequelize from '../config/database';
 
 /**
  * Create a new inquiry

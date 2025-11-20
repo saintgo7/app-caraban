@@ -12,7 +12,7 @@ const generateToken = (userId: string, email: string, role: string): string => {
   }
 
   return jwt.sign({ id: userId, email, role }, secret, {
-    expiresIn: process.env.JWT_EXPIRES_IN || '15m', // Shorter lived access tokens
+    expiresIn: (process.env.JWT_EXPIRES_IN || '15m') as jwt.SignOptions['expiresIn'],
   });
 };
 
@@ -72,6 +72,7 @@ export const register = async (
       data: {
         user: user.toJSON(),
         token,
+        refreshToken: await generateRefreshToken(user.id, req),
       },
     });
   } catch (error) {
@@ -117,6 +118,7 @@ export const login = async (
       data: {
         user: user.toJSON(),
         token,
+        refreshToken: await generateRefreshToken(user.id, req),
       },
     });
   } catch (error) {

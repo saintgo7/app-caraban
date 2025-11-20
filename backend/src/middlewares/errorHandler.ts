@@ -1,4 +1,4 @@
-import { Request, Response, NextFunction } from 'express';
+import { Request, Response, NextFunction, RequestHandler, ErrorRequestHandler } from 'express';
 import logger from '../config/logger';
 
 export interface ApiError extends Error {
@@ -19,7 +19,7 @@ export class AppError extends Error implements ApiError {
   }
 }
 
-export const errorHandler = (
+export const errorHandler: ErrorRequestHandler = (
   err: ApiError,
   req: Request,
   res: Response,
@@ -45,7 +45,7 @@ export const errorHandler = (
   });
 };
 
-export const notFound = (req: Request, res: Response) => {
+export const notFound: RequestHandler = (req: Request, res: Response, _next: NextFunction) => {
   res.status(404).json({
     success: false,
     message: `Route ${req.originalUrl} not found`,

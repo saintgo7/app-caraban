@@ -17,7 +17,7 @@ interface ReservationAttributes {
   updatedAt?: Date;
 }
 
-interface ReservationCreationAttributes extends Optional<ReservationAttributes, 'id' | 'status' | 'paymentStatus' | 'createdAt' | 'updatedAt'> {}
+interface ReservationCreationAttributes extends Optional<ReservationAttributes, 'id' | 'status' | 'paymentStatus' | 'createdAt' | 'updatedAt'> { }
 
 class Reservation extends Model<ReservationAttributes, ReservationCreationAttributes> implements ReservationAttributes {
   public id!: string;
@@ -75,7 +75,7 @@ Reservation.init(
       allowNull: false,
       validate: {
         isAfterCheckIn(value: Date) {
-          if (value <= this.checkInDate) {
+          if (value <= (this as any).checkInDate) {
             throw new Error('체크아웃 날짜는 체크인 날짜 이후여야 합니다.');
           }
         },

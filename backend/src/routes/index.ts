@@ -29,7 +29,7 @@ router.use('/inquiries', inquiryRoutes);
 router.use('/wishlist', wishlistRoutes);
 
 // Health check
-router.get('/health', (req, res) => {
+router.get('/health', (_req, res) => {
   res.json({
     success: true,
     message: 'Server is running',

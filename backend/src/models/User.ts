@@ -18,7 +18,7 @@ interface UserAttributes {
   updatedAt?: Date;
 }
 
-interface UserCreationAttributes extends Optional<UserAttributes, 'id' | 'isActive' | 'createdAt' | 'updatedAt'> {}
+interface UserCreationAttributes extends Optional<UserAttributes, 'id' | 'isActive' | 'createdAt' | 'updatedAt'> { }
 
 class User extends Model<UserAttributes, UserCreationAttributes> implements UserAttributes {
   public id!: string;
@@ -43,7 +43,7 @@ class User extends Model<UserAttributes, UserCreationAttributes> implements User
 
   // Method to get public user data
   public toJSON() {
-    const values = Object.assign({}, this.get());
+    const values: Partial<UserAttributes> = Object.assign({}, this.get());
     delete values.password;
     return values;
   }

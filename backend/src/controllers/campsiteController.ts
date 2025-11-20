@@ -17,9 +17,9 @@ export const getAllCampsites = async (
       minPrice,
       maxPrice,
       search,
-      latitude,
-      longitude,
-      radius = 50, // km
+      // latitude,
+      // longitude,
+      // radius = 50, // km
     } = req.query;
 
     const where: any = { isActive: true };

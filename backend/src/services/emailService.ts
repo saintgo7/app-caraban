@@ -10,7 +10,7 @@ interface EmailOptions {
 
 // Create transporter
 const createTransporter = () => {
-  return nodemailer.createTransporter({
+  return nodemailer.createTransport({
     host: process.env.SMTP_HOST || 'smtp.gmail.com',
     port: parseInt(process.env.SMTP_PORT || '587'),
     secure: false, // true for 465, false for other ports
@@ -84,9 +84,9 @@ export const emailTemplates = {
           <tr>
             <td style="padding: 8px 0;"><strong>총 금액:</strong></td>
             <td style="padding: 8px 0;">${new Intl.NumberFormat('ko-KR', {
-              style: 'currency',
-              currency: 'KRW',
-            }).format(data.totalPrice)}</td>
+    style: 'currency',
+    currency: 'KRW',
+  }).format(data.totalPrice)}</td>
           </tr>
         </table>
       </div>

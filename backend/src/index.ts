@@ -69,7 +69,7 @@ app.use('/uploads', express.static(uploadsDir));
 app.use('/api', routes);
 
 // Root endpoint
-app.get('/', (req, res) => {
+app.get('/', (_req, res) => {
   res.json({
     success: true,
     message: 'Welcome to Caraban ERP API',

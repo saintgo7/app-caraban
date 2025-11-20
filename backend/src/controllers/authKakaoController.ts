@@ -6,7 +6,7 @@ import RefreshToken from '../models/RefreshToken';
 import jwt from 'jsonwebtoken';
 
 const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key';
-const REFRESH_TOKEN_SECRET = process.env.REFRESH_TOKEN_SECRET || 'your-refresh-secret';
+
 const KAKAO_REST_API_KEY = process.env.KAKAO_REST_API_KEY || '';
 const KAKAO_REDIRECT_URI = process.env.KAKAO_REDIRECT_URI || 'http://localhost:3000/auth/kakao/callback';
 
@@ -48,7 +48,7 @@ interface KakaoUserInfo {
 /**
  * Generate Kakao OAuth authorization URL
  */
-export const getKakaoAuthUrl = (req: Request, res: Response): void => {
+export const getKakaoAuthUrl = (_req: Request, res: Response): void => {
   const state = crypto.randomBytes(16).toString('hex');
 
   // Store state in session or temporary cache for CSRF protection
@@ -161,8 +161,8 @@ export const kakaoCallback = async (req: Request, res: Response): Promise<void> 
     const kakaoId = kakaoUser.id.toString();
     const email = kakaoUser.kakao_account?.email;
     const nickname = kakaoUser.kakao_account?.profile?.nickname ||
-                     kakaoUser.properties?.nickname ||
-                     `kakao_user_${kakaoId}`;
+      kakaoUser.properties?.nickname ||
+      `kakao_user_${kakaoId}`;
 
     // Split nickname into first and last name (or use nickname for both)
     const nameParts = nickname.split(' ');
@@ -264,7 +264,7 @@ export const unlinkKakao = async (req: Request, res: Response): Promise<void> =>
     }
 
     // Unlink Kakao account
-    await user.update({ kakaoId: null });
+    await user.update({ kakaoId: null as any });
 
     res.json({
       message: 'Kakao account unlinked successfully',

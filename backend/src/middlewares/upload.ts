@@ -26,7 +26,7 @@ createUploadDirs();
 
 // Storage configuration
 const storage = multer.diskStorage({
-  destination: (req: Request, file: Express.Multer.File, cb) => {
+  destination: (req: Request, _file: Express.Multer.File, cb) => {
     let uploadPath = uploadDir;
 
     // Determine upload path based on route
@@ -40,7 +40,7 @@ const storage = multer.diskStorage({
 
     cb(null, uploadPath);
   },
-  filename: (req: Request, file: Express.Multer.File, cb) => {
+  filename: (_req: Request, file: Express.Multer.File, cb) => {
     // Generate unique filename
     const uniqueSuffix = `${Date.now()}-${Math.round(Math.random() * 1e9)}`;
     const ext = path.extname(file.originalname);
@@ -51,7 +51,7 @@ const storage = multer.diskStorage({
 
 // File filter - only images
 const fileFilter = (
-  req: Request,
+  _req: Request,
   file: Express.Multer.File,
   cb: multer.FileFilterCallback
 ) => {

@@ -12,7 +12,7 @@ export interface AuthRequest extends Request {
 
 export const authenticateToken = (
   req: AuthRequest,
-  res: Response,
+  _res: Response,
   next: NextFunction
 ) => {
   try {
@@ -48,7 +48,7 @@ export const authenticateToken = (
 };
 
 export const authorizeRoles = (...roles: string[]) => {
-  return (req: AuthRequest, res: Response, next: NextFunction) => {
+  return (req: AuthRequest, _res: Response, next: NextFunction) => {
     if (!req.user) {
       return next(new AppError('User not authenticated', 401));
     }
